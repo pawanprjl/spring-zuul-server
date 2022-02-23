@@ -1,0 +1,15 @@
+zuul:
+  routes:
+    facebook:
+      path: /fb/**
+      url: https://facebook.com
+    twitter:
+      path: /twitter/**
+      url: https://twitter.com
+    instagram:
+      path: /insta/**
+      url: https://instagram.com
+
+logging:
+  level:
+    org.srpingframework.web: DEBUG

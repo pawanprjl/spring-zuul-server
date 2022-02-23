@@ -1,0 +1,5 @@
+server:
+  port: 8080
+zuul:
+  ignored-headers: Access-Control-Allow-Credentials, Access-Control-Allow-Origin
+  sensitive-headers:
