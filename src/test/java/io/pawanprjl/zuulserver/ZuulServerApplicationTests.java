@@ -1,4 +1,4 @@
-package io.pawanprjl.template;
+package io.pawanprjl.zuulserver;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
