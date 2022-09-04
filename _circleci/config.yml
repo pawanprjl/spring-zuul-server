@@ -1,0 +1,84 @@
+version: 2.1
+
+
+jobs:
+  build:
+    docker:
+      - image: cimg/openjdk:11.0.16
+    steps:
+      - checkout
+
+      - run: ./gradlew clean bootJar
+
+      - persist_to_workspace:
+          root: ./
+          paths:
+            - build/
+            - .gradle/
+
+
+  test:
+    working_directory: ~/code
+    docker:
+      - image: cimg/openjdk:11.0.16
+    steps:
+      - checkout
+
+      - restore_cache:
+          key: gradle-{{ checksum "build.gradle" }}
+
+      - run: ./gradlew test
+
+      - save_cache:
+          key: gradle-{{ checksum "build.gradle" }}
+          paths:
+            - ~/code/.gradle
+
+  package:
+    docker:
+      - image: cimg/aws:2022.06
+    steps:
+      - setup_remote_docker
+
+      - checkout
+
+      - attach_workspace:
+          at: ./
+
+      - run: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ECR_ACCOUNT_URL
+      - run:
+          name: Package and push to ECR
+          command: |
+            docker build -t spring-zuul-server .
+            docker tag spring-zuul-server:latest $AWS_ECR_ACCOUNT_URL/spring-zuul-server:latest
+            docker push $AWS_ECR_ACCOUNT_URL/spring-zuul-server:latest
+
+
+  deploy:
+    docker:
+      - image: cimg/base:2022.08
+    steps:
+      - run:
+          name: Deploy to host
+          command: |
+            ssh -o StrictHostKeyChecking=no ubuntu@54.91.135.223 'exit'
+            ssh ubuntu@54.91.135.223 "docker pull $AWS_ECR_ACCOUNT_URL/spring-zuul-server:latest"
+            ssh ubuntu@54.91.135.223 "docker image prune -f"
+            ssh ubuntu@54.91.135.223 "docker container rm -f zuul || true"
+            ssh ubuntu@54.91.135.223 "docker run -d -p 8080:8080 --network frontend --name zuul $AWS_ECR_ACCOUNT_URL/spring-zuul-server"
+
+
+workflows:
+  version: 2
+  build_and_push:
+    jobs:
+      - build
+      - test
+      - package:
+          requires:
+            - build
+            - test
+
+      - deploy:
+          requires:
+            - package
